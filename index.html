@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeRADIUS PAP + PostgreSQL Dev Setup</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: #0056b3;
+        }
+        h1 {
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 10px;
+        }
+        h2 {
+            margin-top: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        code {
+            background-color: #e4e4e4;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        pre {
+            background-color: #333;
+            color: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap; /* Wrap long lines */
+            word-wrap: break-word; /* Break words if necessary */
+        }
+        ul {
+            list-style-type: disc;
+            margin-left: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        .important {
+            color: #d9534f;
+            font-weight: bold;
+        }
+        .note {
+            background-color: #f9f9f9;
+            border-left: 4px solid #ccc;
+            padding: 10px;
+            margin: 15px 0;
+        }
+        .step {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed #ddd;
+        }
+        .step:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Setting Up FreeRADIUS with PAP & PostgreSQL (Development Environment)</h1>
+        <p>This guide outlines the steps to configure a FreeRADIUS development environment using Docker, enabling PAP authentication against a PostgreSQL database[cite: 1].</p>
+
+        <h2>Initial Host Machine Setup</h2>
+        <p>Perform these steps in your project directory (e.g., <code>freeradius-pg-docker</code>)[cite: 1].</p>
+        <div class="step">
+            <strong>1. Save Core Files:</strong> [cite: 1]
+            <ul>
+                <li>Save the content for <code>Dockerfile</code>, <code>docker-compose.yml</code>, and <code>init-db.sh</code> into files with those exact names[cite: 1].</li>
+            </ul>
+        </div>
+        <div class="step">
+            <strong>2. Make Script Executable:</strong> [cite: 2]
+            <p>Run the following command:</p>
+            <pre><code>chmod +x init-db.sh</code></pre>
+        </div>
+        <div class="step">
+            <strong>3. Download Database Schema:</strong> [cite: 2]
+            <p>Get the PostgreSQL schema file:</p>
+            <pre><code>curl -o schema.sql https://raw.githubusercontent.com/FreeRADIUS/freeradius-server/v3.2.x/raddb/mods-config/sql/main/postgresql/schema.sql</code></pre>
+        </div>
+        <div class="step">
+            <strong>4. Set Secure Password:</strong> [cite: 2]
+            <p><span class="important">IMPORTANT:</span> Edit <code>docker-compose.yml</code> and replace <span class="important">BOTH</span> instances of <code>your_secure_password</code> with a strong, unique password[cite: 2].</p>
+        </div>
+        <div class="step">
+            <strong>5. Create Host Directories:</strong> [cite: 3]
+            <pre><code>mkdir ./raddb ./logs</code></pre>
+        </div>
+        <div class="step">
+            <strong>6. Populate <code>./raddb</code> with Default Config:</strong> [cite: 3, 4, 5, 6, 25]
+            <p>Copy the default FreeRADIUS configuration from the image to your host's <code>./raddb</code> directory. You typically do this once[cite: 3, 25].</p>
+            <pre><code># Build a temporary image first (if not already built)
+docker build -t temp-freeradius-config .
+
+# Copy config out from the temporary container
+docker run --rm --entrypoint /bin/sh temp-freeradius-config -c "tar cf - -C /etc raddb" | tar xf - -C .
+
+# Optionally remove the temporary image
+# docker rmi temp-freeradius-config</code></pre>
+            <p class="note">Ensure the <code>./raddb</code> directory exists and is populated before proceeding[cite: 23, 24, 50, 51].</p>
+        </div>
+
+        <h2>Configure FreeRADIUS (in <code>./raddb</code>)</h2>
+        <p>Edit the configuration files within your host's <code>./raddb</code> directory[cite: 26, 53]. Changes made here will be reflected inside the container due to the volume mount[cite: 27, 54].</p>
+
+        <div class="step">
+            <strong>1. Configure SQL Module (<code>./raddb/mods-available/sql</code>):</strong> [cite: 30]
+            <ul>
+                <li>Set <code>driver = "rlm_sql_postgresql"</code>[cite: 6, 31].</li>
+                <li>Set <code>dialect = "postgresql"</code>[cite: 6, 31].</li>
+                <li>In the <code>postgresql { ... }</code> section, configure the connection using environment variables passed from <code>docker-compose.yml</code>[cite: 6, 31, 32]:
+                    <pre><code>server = "%{env:DB_HOST}"
+port = "%{env:DB_PORT}"
+login = "%{env:DB_USER}"
+password = "%{env:DB_PASSWORD}"
+radius_db = "%{env:DB_NAME}"</code></pre>
+                </li>
+                <li>Review/adjust connection pool settings (<code>pool {}</code>) if needed for performance[cite: 6]. You might also adjust SQL queries later if necessary[cite: 33].</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <strong>2. Enable SQL Module (<code>./raddb/mods-enabled/sql</code>):</strong> [cite: 33]
+            <ul>
+                <li>Ensure a symbolic link exists from <code>./raddb/mods-enabled/sql</code> to <code>../mods-available/sql</code>[cite: 7, 34, 35]. Create it if it doesn't exist (ensure you are in the project root):</li>
+                <pre><code># Ensure you are in the project root directory (freeradius-pg-docker)
+ln -s ../mods-available/sql ./raddb/mods-enabled/sql</code></pre>
+            </ul>
+        </div>
+
+        <div class="step">
+            <strong>3. Configure Site Processing (<code>./raddb/sites-enabled/default</code>):</strong> [cite: 36]
+            <p>This file controls the main request flow. Modify the sections to integrate SQL and PAP[cite: 8, 37, 43].</p>
+            <ul>
+                <li><strong><code>authorize {}</code> section:</strong>
+                    <ul>
+                        <li>Add <code>sql</code> (usually near the top) to fetch user details/checks from the database[cite: 8, 9, 38].</li>
+                        <li>You might keep <code>files</code> as a fallback[cite: 9].</li>
+                        <li>Keep <code>pap</code> if you need authorize checks based on Auth-Type PAP[cite: 10].</li>
+                        <pre><code>authorize {
+    # ... other initial checks ...
+    sql # Check SQL first
+    # files # Optional: Check files module if not found in SQL
+    pap # Keep pap here if needed for Auth-Type PAP checks
+    # ... other modules ...
+}</code></pre>
+                    </ul>
+                </li>
+                <li><strong><code>authenticate {}</code> section:</strong>
+                    <ul>
+                        <li>Ensure the <code>Auth-Type PAP { pap }</code> block exists to handle PAP authentication[cite: 11, 14, 39].</li>
+                        <li>The <code>pap</code> module itself (configured in <code>mods-available/pap</code>) determines if passwords are checked against the <code>users</code> file (default) or potentially SQL (requires additional configuration like <code>Password-With-Header</code> and SQL query adjustments)[cite: 11, 12, 39].</li>
+                        <li>You might add <code>sql</code> here too if specific SQL checks are needed during authentication[cite: 13, 14, 40].</li>
+                         <pre><code>authenticate {
+    Auth-Type PAP {
+        pap # Handle PAP authentication via the pap module
+    }
+    # ... other Auth-Types like CHAP ...
+    # You might add 'sql' here if needed for other checks
+}</code></pre>
+                    </ul>
+                </li>
+                <li><strong><code>accounting {}</code> section:</strong>
+                    <ul>
+                        <li>Add <code>sql</code> to log accounting records to the database[cite: 15, 16, 41].</li>
+                        <li>Remove or comment out file-based logging (<code>detail</code>, <code>radacct</code>) if you only want SQL accounting[cite: 15].</li>
+                        <pre><code>accounting {
+    # detail # Optional: file logging
+    sql # Log accounting to SQL
+}</code></pre>
+                    </ul>
+                </li>
+                <li><strong><code>session {}</code> and <code>post-auth {}</code> sections:</strong>
+                    <ul>
+                        <li>Review and add <code>sql</code> if needed for your logic (e.g., updating tables after successful authentication)[cite: 16, 42].</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <strong>4. Define RADIUS Clients (<code>./raddb/clients.conf</code>):</strong> [cite: 46]
+            <ul>
+                <li>Add entries for each RADIUS client (NAS, switch, AP, VPN, testing tools) that will send requests[cite: 17, 46, 47].</li>
+                <li>Specify the client's IP address and the shared secret[cite: 17, 47].</li>
+                <li><span class="important">Crucially</span>, include an entry for <code>127.0.0.1</code> if testing with <code>radtest</code> from the host/container (e.g., use secret <code>testing123</code>)[cite: 18, 47].</li>
+                 <pre><code>client localhost {
+    ipaddr = 127.0.0.1
+    secret = testing123 # Use the same secret in radtest
+}
+
+# Add other clients as needed
+# client my_access_point {
+#   ipaddr = 192.168.1.100
+#   secret = your_ap_secret
+# }</code></pre>
+            </ul>
+        </div>
+
+        <div class="step">
+            <strong>5. Configure PAP Users File (<code>./raddb/users</code>):</strong> [cite: 43]
+            <ul>
+                <li>Add any users who will authenticate via PAP using this file, defining their <code>Cleartext-Password</code>[cite: 19, 20, 44].</li>
+                <li>You can also define attributes here[cite: 20, 45].</li>
+                <pre><code>papuser Cleartext-Password := "pappassword"
+        Reply-Message = "Hello from users file, %u"</code></pre>
+                <li>This file can serve as a fallback or for specific user overrides even when using SQL[cite: 45].</li>
+            </ul>
+        </div>
+
+        <h2>Running and Testing</h2>
+        <div class="step">
+            <strong>1. Start Services:</strong>
+            <pre><code>docker-compose up -d</code></pre>
+        </div>
+
+        <div class="step">
+            <strong>2. Check Logs:</strong>
+            <p>Monitor logs for errors or status messages:</p>
+            <pre><code>docker-compose logs -f postgres freeradius</code></pre>
+        </div>
+
+        <div class="step">
+            <strong>3. Add Test Users:</strong>
+            <ul>
+                <li><strong>Add user to PostgreSQL database (for SQL auth testing):</strong> [cite: 20]
+                    <pre><code>docker-compose exec postgres psql -U radius -d radius -c "INSERT INTO radcheck (username, attribute, op, value) VALUES ('sqluser', 'Cleartext-Password', ':=', 'sqlpassword');"</code></pre>
+                </li>
+                <li><strong>Add user to <code>./raddb/users</code> file (for PAP file auth testing):</strong> [cite: 21]
+                    <p>Add the user entry (like the example in step 5 above) to <code>./raddb/users</code> on your host machine.</p>
+                    <p><span class="important">Remember to restart FreeRADIUS</span> after editing <code>./raddb/users</code>[cite: 21, 49, 55]:</p>
+                    <pre><code>docker-compose restart freeradius</code></pre>
+                </li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <strong>4. Test Authentication with <code>radtest</code>:</strong> [cite: 21]
+            <ul>
+                <li><strong>Test SQL user:</strong>
+                    <pre><code>radtest sqluser sqlpassword localhost 0 testing123</code></pre>
+                </li>
+                <li><strong>Test PAP user from 'users' file:</strong>
+                    <pre><code>radtest papuser pappassword localhost 0 testing123</code></pre>
+                </li>
+            </ul>
+        </div>
+
+        <h2>Development Workflow Summary</h2>
+        <p>This setup facilitates rapid development[cite: 29, 56]:</p>
+        <ul>
+            <li>Ensure <code>./raddb</code> exists on your host and contains the FreeRADIUS configuration[cite: 50, 51].</li>
+            <li>Edit configuration files directly within your host's <code>./raddb</code> directory[cite: 53].</li>
+            <li>Changes are immediately reflected inside the container at <code>/etc/raddb</code> due to the volume mount[cite: 54].</li>
+            <li>Restart the FreeRADIUS service to apply changes[cite: 55]:
+                <pre><code>docker-compose restart freeradius</code></pre>
+            </li>
+        </ul>
+        <p class="note">Review and adapt the configuration files in <code>./raddb</code> to match your specific authentication requirements[cite: 22].</p>
+
+    </div>
+</body>
+</html>
