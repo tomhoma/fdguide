@@ -5,107 +5,190 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FreeRADIUS PAP + PostgreSQL Dev Setup</title>
     <style>
+        :root {
+            --bg-color-light: #f4f4f4;
+            --text-color-light: #333;
+            --container-bg-light: #fff;
+            --heading-color-light: #0056b3;
+            --border-color-light: #eee;
+            --code-bg-light: #e4e4e4;
+            --pre-bg-light: #f8f8f8;
+            --pre-text-light: #333;
+            --pre-border-light: #ddd;
+            --note-bg-light: #f9f9f9;
+            --note-border-light: #ccc;
+            --link-color-light: #0056b3;
+            --button-bg-light: #e0e0e0;
+            --button-text-light: #333;
+
+            --bg-color-dark: #222;
+            --text-color-dark: #f1f1f1;
+            --container-bg-dark: #333;
+            --heading-color-dark: #66bfff;
+            --border-color-dark: #444;
+            --code-bg-dark: #555;
+            --pre-bg-dark: #1e1e1e; /* Darker background for code */
+            --pre-text-dark: #d4d4d4; /* Lighter text for code */
+            --pre-border-dark: #555;
+            --note-bg-dark: #2b2b2b;
+            --note-border-dark: #555;
+            --link-color-dark: #66bfff;
+            --button-bg-dark: #555;
+            --button-text-dark: #f1f1f1;
+        }
+
         body {
             font-family: sans-serif;
             line-height: 1.6;
-            margin: 20px;
-            background-color: #f4f4f4;
-            color: #333;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s, color 0.3s;
         }
+
+        /* Light Theme (default) */
+        body.light-theme {
+            background-color: var(--bg-color-light);
+            color: var(--text-color-light);
+        }
+        body.light-theme .container { background-color: var(--container-bg-light); box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        body.light-theme h1, body.light-theme h2, body.light-theme h3 { color: var(--heading-color-light); }
+        body.light-theme h1 { border-bottom: 2px solid var(--heading-color-light); }
+        body.light-theme h2 { border-bottom: 1px solid var(--border-color-light); }
+        body.light-theme code { background-color: var(--code-bg-light); color: var(--text-color-light); }
+        body.light-theme pre { background-color: var(--pre-bg-light); color: var(--pre-text-light); border: 1px solid var(--pre-border-light); }
+        body.light-theme .note { background-color: var(--note-bg-light); border-left: 4px solid var(--note-border-light); }
+        body.light-theme a { color: var(--link-color-light); }
+        body.light-theme .theme-toggle { background-color: var(--button-bg-light); color: var(--button-text-light); border: 1px solid var(--border-color-light); }
+        body.light-theme .important { color: #d9534f; }
+
+        /* Dark Theme */
+        body.dark-theme {
+            background-color: var(--bg-color-dark);
+            color: var(--text-color-dark);
+        }
+        body.dark-theme .container { background-color: var(--container-bg-dark); box-shadow: none; border: 1px solid var(--border-color-dark);}
+        body.dark-theme h1, body.dark-theme h2, body.dark-theme h3 { color: var(--heading-color-dark); }
+        body.dark-theme h1 { border-bottom: 2px solid var(--heading-color-dark); }
+        body.dark-theme h2 { border-bottom: 1px solid var(--border-color-dark); }
+        body.dark-theme code { background-color: var(--code-bg-dark); color: var(--text-color-dark); }
+        body.dark-theme pre { background-color: var(--pre-bg-dark); color: var(--pre-text-dark); border: 1px solid var(--pre-border-dark); } /* Style matches screenshot */
+        body.dark-theme .note { background-color: var(--note-bg-dark); border-left: 4px solid var(--note-border-dark); }
+        body.dark-theme a { color: var(--link-color-dark); }
+        body.dark-theme .theme-toggle { background-color: var(--button-bg-dark); color: var(--button-text-dark); border: 1px solid var(--border-color-dark); }
+        body.dark-theme .important { color: #ff8a85; } /* Brighter red for dark theme */
+
+
+        /* General Styles */
         .container {
-            background-color: #fff;
-            padding: 20px;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 25px;
             border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            transition: background-color 0.3s;
         }
-        h1, h2, h3 {
-            color: #0056b3;
-        }
-        h1 {
-            border-bottom: 2px solid #0056b3;
-            padding-bottom: 10px;
-        }
-        h2 {
-            margin-top: 30px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 5px;
-        }
+        h1 { padding-bottom: 10px; }
+        h2 { margin-top: 35px; padding-bottom: 8px; }
+        h3 { margin-top: 25px; }
         code {
-            background-color: #e4e4e4;
-            padding: 2px 5px;
+            padding: 3px 6px;
             border-radius: 4px;
-            font-family: monospace;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.95em;
         }
         pre {
-            background-color: #333;
-            color: #f4f4f4;
             padding: 15px;
             border-radius: 5px;
             overflow-x: auto;
-            white-space: pre-wrap; /* Wrap long lines */
-            word-wrap: break-word; /* Break words if necessary */
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.9em; /* Slightly smaller for code blocks */
+            line-height: 1.5;
+            margin: 15px 0;
+            transition: background-color 0.3s, color 0.3s, border 0.3s;
         }
         ul {
             list-style-type: disc;
-            margin-left: 20px;
+            margin-left: 25px;
+            padding-left: 0;
         }
-        li {
-            margin-bottom: 10px;
-        }
-        .important {
-            color: #d9534f;
-            font-weight: bold;
-        }
+        li { margin-bottom: 10px; }
+        .important { font-weight: bold; }
         .note {
-            background-color: #f9f9f9;
-            border-left: 4px solid #ccc;
-            padding: 10px;
-            margin: 15px 0;
+            padding: 12px 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            transition: background-color 0.3s, border-left-color 0.3s;
         }
         .step {
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 1px dashed #ddd;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px dashed #ccc; /* Use a general color */
         }
-        .step:last-child {
-            border-bottom: none;
+        body.light-theme .step { border-bottom-color: #ddd; }
+        body.dark-theme .step { border-bottom-color: #444; }
+
+        .step:last-child { border-bottom: none; }
+
+        .theme-toggle {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.3s, color 0.3s, border 0.3s;
         }
+        .config-file {
+            margin-bottom: 25px;
+            padding: 15px;
+            border: 1px solid #eee; /* Use a general color */
+            border-radius: 5px;
+            transition: border-color 0.3s;
+        }
+        body.light-theme .config-file { border-color: #ddd; }
+        body.dark-theme .config-file { border-color: #444; }
+        .config-file h3 { margin-top: 0; }
+
     </style>
 </head>
 <body>
+    <button class="theme-toggle" id="themeToggle">Toggle Theme</button>
+
     <div class="container">
         <h1>Setting Up FreeRADIUS with PAP & PostgreSQL (Development Environment)</h1>
-        <p>This guide outlines the steps to configure a FreeRADIUS development environment using Docker, enabling PAP authentication against a PostgreSQL database[cite: 1].</p>
+        <p>This guide outlines the steps to configure a FreeRADIUS development environment using Docker, enabling PAP authentication against a PostgreSQL database.</p>
 
         <h2>Initial Host Machine Setup</h2>
-        <p>Perform these steps in your project directory (e.g., <code>freeradius-pg-docker</code>)[cite: 1].</p>
+        <p>Perform these steps in your project directory (e.g., <code>freeradius-pg-docker</code>).</p>
         <div class="step">
-            <strong>1. Save Core Files:</strong> [cite: 1]
+            <strong>1. Save Core Files:</strong>
             <ul>
-                <li>Save the content for <code>Dockerfile</code>, <code>docker-compose.yml</code>, and <code>init-db.sh</code> into files with those exact names[cite: 1].</li>
+                <li>Save the content for <code>Dockerfile</code>, <code>docker-compose.yml</code>, and <code>init-db.sh</code> into files with those exact names.</li>
             </ul>
         </div>
         <div class="step">
-            <strong>2. Make Script Executable:</strong> [cite: 2]
+            <strong>2. Make Script Executable:</strong>
             <p>Run the following command:</p>
             <pre><code>chmod +x init-db.sh</code></pre>
         </div>
         <div class="step">
-            <strong>3. Download Database Schema:</strong> [cite: 2]
+            <strong>3. Download Database Schema:</strong>
             <p>Get the PostgreSQL schema file:</p>
             <pre><code>curl -o schema.sql https://raw.githubusercontent.com/FreeRADIUS/freeradius-server/v3.2.x/raddb/mods-config/sql/main/postgresql/schema.sql</code></pre>
         </div>
         <div class="step">
-            <strong>4. Set Secure Password:</strong> [cite: 2]
-            <p><span class="important">IMPORTANT:</span> Edit <code>docker-compose.yml</code> and replace <span class="important">BOTH</span> instances of <code>your_secure_password</code> with a strong, unique password[cite: 2].</p>
+            <strong>4. Set Secure Password:</strong>
+            <p><span class="important">IMPORTANT:</span> Edit <code>docker-compose.yml</code> and replace <span class="important">BOTH</span> instances of <code>your_secure_password</code> with a strong, unique password.</p>
         </div>
         <div class="step">
-            <strong>5. Create Host Directories:</strong> [cite: 3]
+            <strong>5. Create Host Directories:</strong>
             <pre><code>mkdir ./raddb ./logs</code></pre>
         </div>
         <div class="step">
-            <strong>6. Populate <code>./raddb</code> with Default Config:</strong> [cite: 3, 4, 5, 6, 25]
-            <p>Copy the default FreeRADIUS configuration from the image to your host's <code>./raddb</code> directory. You typically do this once[cite: 3, 25].</p>
+            <strong>6. Populate <code>./raddb</code> with Default Config:</strong>
+            <p>Copy the default FreeRADIUS configuration from the image to your host's <code>./raddb</code> directory. You typically do this once.</p>
             <pre><code># Build a temporary image first (if not already built)
 docker build -t temp-freeradius-config .
 
@@ -114,46 +197,46 @@ docker run --rm --entrypoint /bin/sh temp-freeradius-config -c "tar cf - -C /etc
 
 # Optionally remove the temporary image
 # docker rmi temp-freeradius-config</code></pre>
-            <p class="note">Ensure the <code>./raddb</code> directory exists and is populated before proceeding[cite: 23, 24, 50, 51].</p>
+            <p class="note">Ensure the <code>./raddb</code> directory exists and is populated before proceeding.</p>
         </div>
 
         <h2>Configure FreeRADIUS (in <code>./raddb</code>)</h2>
-        <p>Edit the configuration files within your host's <code>./raddb</code> directory[cite: 26, 53]. Changes made here will be reflected inside the container due to the volume mount[cite: 27, 54].</p>
+        <p>Edit the configuration files within your host's <code>./raddb</code> directory. Changes made here will be reflected inside the container due to the volume mount specified in <code>docker-compose.yml</code>.</p>
 
         <div class="step">
-            <strong>1. Configure SQL Module (<code>./raddb/mods-available/sql</code>):</strong> [cite: 30]
-            <ul>
-                <li>Set <code>driver = "rlm_sql_postgresql"</code>[cite: 6, 31].</li>
-                <li>Set <code>dialect = "postgresql"</code>[cite: 6, 31].</li>
-                <li>In the <code>postgresql { ... }</code> section, configure the connection using environment variables passed from <code>docker-compose.yml</code>[cite: 6, 31, 32]:
+            <strong>1. Configure SQL Module (<code>./raddb/mods-available/sql</code>):</strong>
+             <ul>
+                <li>Set <code>driver = "rlm_sql_postgresql"</code>.</li>
+                <li>Set <code>dialect = "postgresql"</code>.</li>
+                <li>In the <code>postgresql { ... }</code> section, configure the connection using environment variables passed from <code>docker-compose.yml</code>:
                     <pre><code>server = "%{env:DB_HOST}"
 port = "%{env:DB_PORT}"
 login = "%{env:DB_USER}"
 password = "%{env:DB_PASSWORD}"
 radius_db = "%{env:DB_NAME}"</code></pre>
                 </li>
-                <li>Review/adjust connection pool settings (<code>pool {}</code>) if needed for performance[cite: 6]. You might also adjust SQL queries later if necessary[cite: 33].</li>
+                <li>Review/adjust connection pool settings (<code>pool {}</code>) if needed for performance. You might also adjust SQL queries later if necessary.</li>
             </ul>
         </div>
 
         <div class="step">
-            <strong>2. Enable SQL Module (<code>./raddb/mods-enabled/sql</code>):</strong> [cite: 33]
-            <ul>
-                <li>Ensure a symbolic link exists from <code>./raddb/mods-enabled/sql</code> to <code>../mods-available/sql</code>[cite: 7, 34, 35]. Create it if it doesn't exist (ensure you are in the project root):</li>
+            <strong>2. Enable SQL Module (<code>./raddb/mods-enabled/sql</code>):</strong>
+             <ul>
+                <li>Ensure a symbolic link exists from <code>./raddb/mods-enabled/sql</code> to <code>../mods-available/sql</code>. Create it if it doesn't exist (ensure you are in the project root):</li>
                 <pre><code># Ensure you are in the project root directory (freeradius-pg-docker)
 ln -s ../mods-available/sql ./raddb/mods-enabled/sql</code></pre>
             </ul>
         </div>
 
         <div class="step">
-            <strong>3. Configure Site Processing (<code>./raddb/sites-enabled/default</code>):</strong> [cite: 36]
-            <p>This file controls the main request flow. Modify the sections to integrate SQL and PAP[cite: 8, 37, 43].</p>
+            <strong>3. Configure Site Processing (<code>./raddb/sites-enabled/default</code>):</strong>
+            <p>This file controls the main request flow. Modify the sections to integrate SQL and PAP.</p>
             <ul>
                 <li><strong><code>authorize {}</code> section:</strong>
                     <ul>
-                        <li>Add <code>sql</code> (usually near the top) to fetch user details/checks from the database[cite: 8, 9, 38].</li>
-                        <li>You might keep <code>files</code> as a fallback[cite: 9].</li>
-                        <li>Keep <code>pap</code> if you need authorize checks based on Auth-Type PAP[cite: 10].</li>
+                        <li>Add <code>sql</code> (usually near the top) to fetch user details/checks from the database.</li>
+                        <li>You might keep <code>files</code> as a fallback.</li>
+                        <li>Keep <code>pap</code> if you need authorize checks based on Auth-Type PAP.</li>
                         <pre><code>authorize {
     # ... other initial checks ...
     sql # Check SQL first
@@ -165,9 +248,9 @@ ln -s ../mods-available/sql ./raddb/mods-enabled/sql</code></pre>
                 </li>
                 <li><strong><code>authenticate {}</code> section:</strong>
                     <ul>
-                        <li>Ensure the <code>Auth-Type PAP { pap }</code> block exists to handle PAP authentication[cite: 11, 14, 39].</li>
-                        <li>The <code>pap</code> module itself (configured in <code>mods-available/pap</code>) determines if passwords are checked against the <code>users</code> file (default) or potentially SQL (requires additional configuration like <code>Password-With-Header</code> and SQL query adjustments)[cite: 11, 12, 39].</li>
-                        <li>You might add <code>sql</code> here too if specific SQL checks are needed during authentication[cite: 13, 14, 40].</li>
+                        <li>Ensure the <code>Auth-Type PAP { pap }</code> block exists to handle PAP authentication.</li>
+                        <li>The <code>pap</code> module itself (configured in <code>mods-available/pap</code>) determines if passwords are checked against the <code>users</code> file (default) or potentially SQL (requires additional configuration like <code>Password-With-Header</code> and SQL query adjustments).</li>
+                        <li>You might add <code>sql</code> here too if specific SQL checks are needed during authentication.</li>
                          <pre><code>authenticate {
     Auth-Type PAP {
         pap # Handle PAP authentication via the pap module
@@ -179,8 +262,8 @@ ln -s ../mods-available/sql ./raddb/mods-enabled/sql</code></pre>
                 </li>
                 <li><strong><code>accounting {}</code> section:</strong>
                     <ul>
-                        <li>Add <code>sql</code> to log accounting records to the database[cite: 15, 16, 41].</li>
-                        <li>Remove or comment out file-based logging (<code>detail</code>, <code>radacct</code>) if you only want SQL accounting[cite: 15].</li>
+                        <li>Add <code>sql</code> to log accounting records to the database.</li>
+                        <li>Remove or comment out file-based logging (<code>detail</code>, <code>radacct</code>) if you only want SQL accounting.</li>
                         <pre><code>accounting {
     # detail # Optional: file logging
     sql # Log accounting to SQL
@@ -189,18 +272,18 @@ ln -s ../mods-available/sql ./raddb/mods-enabled/sql</code></pre>
                 </li>
                 <li><strong><code>session {}</code> and <code>post-auth {}</code> sections:</strong>
                     <ul>
-                        <li>Review and add <code>sql</code> if needed for your logic (e.g., updating tables after successful authentication)[cite: 16, 42].</li>
+                        <li>Review and add <code>sql</code> if needed for your logic (e.g., updating tables after successful authentication).</li>
                     </ul>
                 </li>
             </ul>
         </div>
 
         <div class="step">
-            <strong>4. Define RADIUS Clients (<code>./raddb/clients.conf</code>):</strong> [cite: 46]
+            <strong>4. Define RADIUS Clients (<code>./raddb/clients.conf</code>):</strong>
             <ul>
-                <li>Add entries for each RADIUS client (NAS, switch, AP, VPN, testing tools) that will send requests[cite: 17, 46, 47].</li>
-                <li>Specify the client's IP address and the shared secret[cite: 17, 47].</li>
-                <li><span class="important">Crucially</span>, include an entry for <code>127.0.0.1</code> if testing with <code>radtest</code> from the host/container (e.g., use secret <code>testing123</code>)[cite: 18, 47].</li>
+                <li>Add entries for each RADIUS client (NAS, switch, AP, VPN, testing tools) that will send requests.</li>
+                <li>Specify the client's IP address and the shared secret.</li>
+                <li><span class="important">Crucially</span>, include an entry for <code>127.0.0.1</code> if testing with <code>radtest</code> from the host/container (e.g., use secret <code>testing123</code>).</li>
                  <pre><code>client localhost {
     ipaddr = 127.0.0.1
     secret = testing123 # Use the same secret in radtest
@@ -215,18 +298,66 @@ ln -s ../mods-available/sql ./raddb/mods-enabled/sql</code></pre>
         </div>
 
         <div class="step">
-            <strong>5. Configure PAP Users File (<code>./raddb/users</code>):</strong> [cite: 43]
+            <strong>5. Configure PAP Users File (<code>./raddb/users</code>):</strong>
             <ul>
-                <li>Add any users who will authenticate via PAP using this file, defining their <code>Cleartext-Password</code>[cite: 19, 20, 44].</li>
-                <li>You can also define attributes here[cite: 20, 45].</li>
+                <li>Add any users who will authenticate via PAP using this file, defining their <code>Cleartext-Password</code>.</li>
+                <li>You can also define attributes here.</li>
                 <pre><code>papuser Cleartext-Password := "pappassword"
         Reply-Message = "Hello from users file, %u"</code></pre>
-                <li>This file can serve as a fallback or for specific user overrides even when using SQL[cite: 45].</li>
+                <li>This file can serve as a fallback or for specific user overrides even when using SQL.</li>
             </ul>
         </div>
 
+        <h2>Key Configuration Files Overview (in <code>./raddb</code>)</h2>
+        <p>This section lists the primary files within your host's <code>./raddb</code> directory that you'll typically interact with when configuring PAP and SQL (PostgreSQL) authentication:</p>
+
+        <div class="config-file">
+            <h3><code>./raddb/mods-available/sql</code></h3>
+            <p><strong>Purpose:</strong> Configures the core SQL module (<code>rlm_sql</code>).</p>
+            <p><strong>Edits:</strong></p>
+            <ul>
+                <li>Ensure <code>driver</code> is set to <code>"rlm_sql_postgresql"</code>.</li>
+                <li>Ensure <code>dialect</code> is set to <code>"postgresql"</code>.</li>
+                <li>Critically, configure the <code>postgresql {...}</code> subsection with the correct connection details using environment variables (<code>%{env:VAR_NAME}</code>) from <code>docker-compose.yml</code> (e.g., <code>server = "%{env:DB_HOST}"</code>, <code>password = "%{env:DB_PASSWORD}"</code>).</li>
+                <li>You might adjust SQL queries here later if needed.</li>
+            </ul>
+        </div>
+
+        <div class="config-file">
+            <h3><code>./raddb/mods-enabled/sql</code> (Symlink)</h3>
+            <p><strong>Purpose:</strong> Enables the SQL module configured in <code>mods-available/sql</code>.</p>
+            <p><strong>Action:</strong> This isn't a file you edit directly, but you must ensure it exists as a symbolic link pointing to <code>../mods-available/sql</code>. You likely created this in the initial setup steps (<code>ln -s ../mods-available/sql ./raddb/mods-enabled/sql</code>).</p>
+        </div>
+
+        <div class="config-file">
+            <h3><code>./raddb/sites-enabled/default</code> (and potentially <code>inner-tunnel</code>)</h3>
+            <p><strong>Purpose:</strong> Defines the request processing workflow (virtual server).</p>
+            <p><strong>Edits:</strong> This is where you tell FreeRADIUS when and how to use the PAP and SQL modules within the different processing sections (<code>authorize</code>, <code>authenticate</code>, <code>accounting</code>, <code>post-auth</code>, <code>session</code>) as detailed in Step 3 of the configuration process above. You'll typically uncomment the <code>sql</code> entries or add them in the desired order relative to other modules like <code>files</code>, <code>pap</code>, <code>chap</code>, etc.</p>
+            <ul>
+                <li><strong><code>authorize {}</code>:</strong> Add <code>sql</code> to fetch user details/perform checks from the database.</li>
+                <li><strong><code>authenticate {}</code>:</strong> Ensure <code>Auth-Type PAP { pap }</code> exists. The <code>pap</code> module itself (<code>mods-available/pap</code>) handles the check (vs users file or potentially SQL). You might add <code>sql</code> here too for other checks.</li>
+                <li><strong><code>accounting {}</code>:</strong> Add <code>sql</code> to log records to PostgreSQL.</li>
+                <li><strong><code>session {}</code>, <code>post-auth {}</code>:</strong> Add <code>sql</code> if needed for actions during these phases.</li>
+            </ul>
+        </div>
+
+        <div class="config-file">
+            <h3><code>./raddb/users</code></h3>
+            <p><strong>Purpose:</strong> The default plain-text file for defining users, passwords (for PAP/CHAP if not using SQL for passwords), and attributes.</p>
+            <p><strong>Edits:</strong></p>
+             <ul>
+                <li>Add users here who authenticate only via PAP using this file.</li>
+                <li>Define default attributes or group memberships here that might apply even to users authenticated via SQL.</li>
+            </ul>
+        </div>
+
+        <div class="config-file">
+            <h3><code>./raddb/clients.conf</code></h3>
+            <p><strong>Purpose:</strong> Defines which RADIUS clients (NAS devices, switches, APs, VPN concentrators, test tools) are allowed to send requests and the shared secret for communication.</p>
+            <p><strong>Edits:</strong> You <span class="important">absolutely need</span> to edit this file to add the IP address and shared secret for any device sending requests, including <code>localhost</code> (IP <code>127.0.0.1</code>) for testing with <code>radtest</code>.</p>
+        </div>
         <h2>Running and Testing</h2>
-        <div class="step">
+         <div class="step">
             <strong>1. Start Services:</strong>
             <pre><code>docker-compose up -d</code></pre>
         </div>
@@ -240,19 +371,19 @@ ln -s ../mods-available/sql ./raddb/mods-enabled/sql</code></pre>
         <div class="step">
             <strong>3. Add Test Users:</strong>
             <ul>
-                <li><strong>Add user to PostgreSQL database (for SQL auth testing):</strong> [cite: 20]
+                <li><strong>Add user to PostgreSQL database (for SQL auth testing):</strong>
                     <pre><code>docker-compose exec postgres psql -U radius -d radius -c "INSERT INTO radcheck (username, attribute, op, value) VALUES ('sqluser', 'Cleartext-Password', ':=', 'sqlpassword');"</code></pre>
                 </li>
-                <li><strong>Add user to <code>./raddb/users</code> file (for PAP file auth testing):</strong> [cite: 21]
-                    <p>Add the user entry (like the example in step 5 above) to <code>./raddb/users</code> on your host machine.</p>
-                    <p><span class="important">Remember to restart FreeRADIUS</span> after editing <code>./raddb/users</code>[cite: 21, 49, 55]:</p>
+                <li><strong>Add user to <code>./raddb/users</code> file (for PAP file auth testing):</strong>
+                    <p>Add the user entry (like the example provided earlier) to <code>./raddb/users</code> on your host machine.</p>
+                    <p><span class="important">Remember to restart FreeRADIUS</span> after editing <code>./raddb/users</code>:</p>
                     <pre><code>docker-compose restart freeradius</code></pre>
                 </li>
             </ul>
         </div>
 
         <div class="step">
-            <strong>4. Test Authentication with <code>radtest</code>:</strong> [cite: 21]
+            <strong>4. Test Authentication with <code>radtest</code>:</strong>
             <ul>
                 <li><strong>Test SQL user:</strong>
                     <pre><code>radtest sqluser sqlpassword localhost 0 testing123</code></pre>
@@ -263,18 +394,53 @@ ln -s ../mods-available/sql ./raddb/mods-enabled/sql</code></pre>
             </ul>
         </div>
 
+
         <h2>Development Workflow Summary</h2>
-        <p>This setup facilitates rapid development[cite: 29, 56]:</p>
+        <p>This Docker volume mount setup facilitates rapid development:</p>
         <ul>
-            <li>Ensure <code>./raddb</code> exists on your host and contains the FreeRADIUS configuration[cite: 50, 51].</li>
-            <li>Edit configuration files directly within your host's <code>./raddb</code> directory[cite: 53].</li>
-            <li>Changes are immediately reflected inside the container at <code>/etc/raddb</code> due to the volume mount[cite: 54].</li>
-            <li>Restart the FreeRADIUS service to apply changes[cite: 55]:
+            <li>Ensure <code>./raddb</code> exists on your host and contains the FreeRADIUS configuration files.</li>
+            <li>Edit configuration files directly within your host's <code>./raddb</code> directory using your preferred text editor.</li>
+            <li>Changes saved on your host are immediately visible inside the container at <code>/etc/raddb</code>.</li>
+            <li>For FreeRADIUS to load the modified configuration, restart the service:
                 <pre><code>docker-compose restart freeradius</code></pre>
+                <p>(Alternatively: <code>docker-compose stop freeradius && docker-compose up -d freeradius</code>)</p>
             </li>
         </ul>
-        <p class="note">Review and adapt the configuration files in <code>./raddb</code> to match your specific authentication requirements[cite: 22].</p>
+        <p class="note">Remember to restart the <code>freeradius</code> service after saving changes to configuration files on your host for them to take effect. Carefully adapt the configurations to match your specific requirements.</p>
 
     </div>
+
+    <script>
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
+
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                body.classList.remove('light-theme');
+                body.classList.add('dark-theme');
+                localStorage.setItem('theme', 'dark');
+                themeToggle.textContent = 'Switch to Light Theme';
+            } else {
+                body.classList.remove('dark-theme');
+                body.classList.add('light-theme');
+                localStorage.setItem('theme', 'light');
+                themeToggle.textContent = 'Switch to Dark Theme';
+            }
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = localStorage.getItem('theme') || (prefersDarkScheme.matches ? 'dark' : 'light');
+            applyTheme(currentTheme === 'light' ? 'dark' : 'light');
+        });
+
+        // Apply saved theme or default based on system preference on load
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            applyTheme(savedTheme);
+        } else {
+            applyTheme(prefersDarkScheme.matches ? 'dark' : 'light');
+        }
+    </script>
 </body>
 </html>
